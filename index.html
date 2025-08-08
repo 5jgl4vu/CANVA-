@@ -1,0 +1,2110 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人生模擬卡牌遊戲 | 重新設計版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
+        
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --accent: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .game-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 3fr 1fr;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas:
+                "header header header"
+                "left-panel main-area right-panel"
+                "hand-area hand-area hand-area";
+            gap: 1rem;
+            height: 100vh;
+        }
+        
+        .header-area {
+            grid-area: header;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 1rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .left-panel {
+            grid-area: left-panel;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .main-area {
+            grid-area: main-area;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .right-panel {
+            grid-area: right-panel;
+        }
+        
+        .hand-area {
+            grid-area: hand-area;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 1rem;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .panel {
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 1rem;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .card {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            transition: all 0.3s ease;
+        }
+        
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .card-front {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            color: var(--dark);
+        }
+        
+        .card-back {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: var(--light);
+            transform: rotateY(180deg);
+        }
+        
+        .trait-card .card-front {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        }
+        
+        .event-card .card-front {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+        }
+        
+        .major-event-card .card-front {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+        }
+        
+        .potential-card .card-front {
+            background: linear-gradient(135deg, #e9d5ff, #d8b4fe);
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-10px);
+            cursor: pointer;
+        }
+        
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-title {
+            font-weight: 700;
+            font-size: 1rem;
+            text-align: center;
+            margin-bottom: 0.25rem;
+        }
+        
+        .card-description {
+            font-size: 0.75rem;
+            text-align: center;
+            color: #4b5563;
+        }
+        
+        .placement-zone {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 1rem;
+            min-height: 150px;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .placement-zone:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .drop-zone {
+            background: rgba(99, 102, 241, 0.3) !important;
+            border: 2px dashed rgba(99, 102, 241, 0.8) !important;
+        }
+        
+        .potential-zone {
+            background: rgba(139, 92, 246, 0.2);
+            border: 2px dashed rgba(139, 92, 246, 0.4);
+        }
+        
+        .stat-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-progress {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .phase-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .phase-button.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .phase-button:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .phase-button:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .glow {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from {
+                box-shadow: 0 0 5px rgba(99, 102, 241, 0.5), 0 0 10px rgba(99, 102, 241, 0.5);
+            }
+            to {
+                box-shadow: 0 0 10px rgba(99, 102, 241, 0.8), 0 0 20px rgba(99, 102, 241, 0.8);
+            }
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background: rgba(15, 23, 42, 0.9);
+            color: #fff;
+            text-align: center;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            margin: 10% auto;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #d946ef;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            color: white;
+        }
+        
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background: rgba(15, 23, 42, 0.9);
+            color: white;
+            max-width: 300px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .tutorial-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 1.5rem;
+            z-index: 90;
+            transform: translateY(100%);
+            transition: transform 0.5s ease;
+            box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .tutorial-panel.show {
+            transform: translateY(0);
+        }
+        
+        .card-action-modal {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 1rem;
+            padding: 1rem;
+            z-index: 95;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        .hand-cards {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding: 0.5rem;
+            min-height: 180px;
+            align-items: center;
+        }
+        
+        .hand-card {
+            flex: 0 0 auto;
+            width: 120px;
+            height: 160px;
+        }
+        
+        .event-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        
+        .placement-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+        }
+        
+        .potential-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        
+        .tech-tree-container {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
+        
+        .tech-tree-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .tech-tree-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        .tech-tree-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        .tech-tree-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .deck-card {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            border-radius: 1rem;
+            aspect-ratio: 3/4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .deck-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .age-badge {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        
+        .round-badge {
+            background: var(--secondary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+        
+        .next-phase-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+        }
+        
+        .stat-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        
+        .knowledge-color { background: #3b82f6; }
+        .creativity-color { background: #ef4444; }
+        .social-color { background: #f59e0b; }
+        .physical-color { background: #10b981; }
+        .wealth-color { background: #8b5cf6; }
+        .happiness-color { background: #ec4899; }
+        
+        .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        .upgraded-card {
+            border: 2px solid gold;
+            box-shadow: 0 0 10px gold;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- 頂部區域：回合、年齡和階段 -->
+        <header class="header-area">
+            <div class="flex items-center gap-4">
+                <div class="round-badge">回合 <span id="round-counter">1</span>/20</div>
+                <div class="age-badge">年齡 <span id="age-counter">20</span> 歲</div>
+                <div class="next-phase-badge">距離下一階段: <span id="next-phase-counter">5</span> 年</div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="planning-phase" class="phase-button active">
+                    <span>📋</span> 規劃階段
+                </button>
+                <button id="execution-phase" class="phase-button">
+                    <span>⚡</span> 執行階段
+                </button>
+                <button id="review-phase" class="phase-button">
+                    <span>📊</span> 整理階段
+                </button>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="tutorial-btn" class="btn btn-outline">
+                    <span>❓</span> 教學
+                </button>
+                <button id="tech-tree-btn" class="btn btn-primary">
+                    <span>🌳</span> 發展路線
+                </button>
+            </div>
+        </header>
+        
+        <!-- 左側面板：特質卡堆與下一個事件 -->
+        <aside class="left-panel">
+            <div class="panel h-1/2">
+                <h3 class="text-lg font-bold mb-4">特質卡堆</h3>
+                <div class="deck-card mb-6" id="trait-deck">
+                    <div class="text-4xl mb-2">🧠</div>
+                    <div class="font-bold">特質卡</div>
+                    <div class="text-sm mt-1">剩餘: <span id="trait-deck-count">15</span> 張</div>
+                    <div class="mt-2 text-xs opacity-75" id="deck-status">(第一回合不可抽卡)</div>
+                </div>
+                
+                <h3 class="text-lg font-bold mb-4">下一個事件</h3>
+                <div class="event-card h-40">
+                    <div class="card-inner">
+                        <div class="card-front">
+                            <div class="card-icon" id="next-event-icon">🎯</div>
+                            <div class="card-title" id="next-event-name">社交聚會</div>
+                            <div class="card-description">回合 <span id="next-event-round">2</span></div>
+                            <div class="card-description" id="next-event-requirement">需要: 社交 x1</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel h-1/2">
+                <h3 class="text-lg font-bold mb-4">當前發展階段</h3>
+                <div class="bg-white bg-opacity-10 p-3 rounded-lg mb-4">
+                    <div class="font-bold mb-1">基礎發展階段 (20-25歲)</div>
+                    <div class="text-sm opacity-75">解鎖下一階段需要: 任意數值達到 15</div>
+                </div>
+                
+                <h3 class="text-lg font-bold mb-2">遊戲目標</h3>
+                <div class="text-sm opacity-75">
+                    在20回合內發展出最成功的人生！通過提升各項數值，解鎖不同的發展路線，最終達到「人生大師」的終極成就。
+                </div>
+            </div>
+        </aside>
+        
+        <!-- 中央區域：事件卡和擺放區 -->
+        <main class="main-area">
+            <!-- 事件卡區域 -->
+            <div class="event-grid">
+                <div class="event-card h-40">
+                    <div class="card-inner">
+                        <div class="card-front">
+                            <div class="card-icon">📚</div>
+                            <div class="card-title">學習機會</div>
+                            <div class="card-description">需要: 創意 x1</div>
+                            <div class="card-description">獎勵: 知識 +2</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="major-event-card h-40 glow">
+                    <div class="card-inner">
+                        <div class="card-front">
+                            <div class="card-icon">🎓</div>
+                            <div class="card-title">大學畢業</div>
+                            <div class="card-description">需要: 知識 x3</div>
+                            <div class="card-description">進度: <span id="major-event-progress">1</span>/3</div>
+                            <div class="card-description">獎勵: 潛力卡 x1</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="event-card h-40">
+                    <div class="card-inner">
+                        <div class="card-front">
+                            <div class="card-icon">💼</div>
+                            <div class="card-title">工作機會</div>
+                            <div class="card-description">需要: 社交 x1</div>
+                            <div class="card-description">獎勵: 財富 +2</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 擺放區 -->
+            <div class="panel flex-1">
+                <h3 class="text-lg font-bold mb-4">擺放區</h3>
+                <div class="placement-grid mb-4">
+                    <div class="placement-zone" id="zone-1" data-zone="zone-1">
+                        <div class="text-sm opacity-75">擺放區 1</div>
+                    </div>
+                    <div class="placement-zone" id="zone-2" data-zone="zone-2">
+                        <div class="text-sm opacity-75">擺放區 2</div>
+                    </div>
+                    <div class="placement-zone" id="zone-3" data-zone="zone-3">
+                        <div class="text-sm opacity-75">擺放區 3</div>
+                    </div>
+                    <div class="placement-zone" id="zone-4" data-zone="zone-4">
+                        <div class="text-sm opacity-75">擺放區 4</div>
+                    </div>
+                    <div class="placement-zone" id="zone-5" data-zone="zone-5">
+                        <div class="text-sm opacity-75">擺放區 5</div>
+                    </div>
+                </div>
+                
+                <h3 class="text-lg font-bold mb-4">潛力區</h3>
+                <div class="potential-grid">
+                    <div class="placement-zone potential-zone" id="potential-1" data-zone="potential-1">
+                        <div class="text-sm text-purple-200 opacity-75">潛力區 1</div>
+                    </div>
+                    <div class="placement-zone potential-zone" id="potential-2" data-zone="potential-2">
+                        <div class="text-sm text-purple-200 opacity-75">潛力區 2</div>
+                    </div>
+                    <div class="placement-zone potential-zone" id="potential-3" data-zone="potential-3">
+                        <div class="text-sm text-purple-200 opacity-75">潛力區 3</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- 右側面板：數值表 -->
+        <aside class="right-panel">
+            <div class="panel h-full">
+                <h3 class="text-xl font-bold mb-6">數值表</h3>
+                
+                <div class="mb-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center tooltip">
+                            <div class="stat-icon knowledge-color">🧠</div>
+                            <span>知識</span>
+                            <span class="tooltiptext">影響學術發展和專業技能</span>
+                        </div>
+                        <span id="knowledge-value" class="font-bold">5</span>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-progress knowledge-color" style="width: 25%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center tooltip">
+                            <div class="stat-icon creativity-color">💡</div>
+                            <span>創意</span>
+                            <span class="tooltiptext">影響創新能力和解決問題的方式</span>
+                        </div>
+                        <span id="creativity-value" class="font-bold">3</span>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-progress creativity-color" style="width: 15%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center tooltip">
+                            <div class="stat-icon social-color">👥</div>
+                            <span>社交</span>
+                            <span class="tooltiptext">影響人際關係和社交網絡</span>
+                        </div>
+                        <span id="social-value" class="font-bold">4</span>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-progress social-color" style="width: 20%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center tooltip">
+                            <div class="stat-icon physical-color">💪</div>
+                            <span>體力</span>
+                            <span class="tooltiptext">影響健康狀態和體能表現</span>
+                        </div>
+                        <span id="physical-value" class="font-bold">6</span>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-progress physical-color" style="width: 30%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center tooltip">
+                            <div class="stat-icon wealth-color">💰</div>
+                            <span>財富</span>
+                            <span class="tooltiptext">影響經濟狀況和生活品質</span>
+                        </div>
+                        <span id="wealth-value" class="font-bold">2</span>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-progress wealth-color" style="width: 10%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center tooltip">
+                            <div class="stat-icon happiness-color">❤️</div>
+                            <span>幸福</span>
+                            <span class="tooltiptext">影響生活滿意度和心理健康</span>
+                        </div>
+                        <span id="happiness-value" class="font-bold">7</span>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-progress happiness-color" style="width: 35%"></div>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <h4 class="font-bold mb-2">成就進度</h4>
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <div class="text-sm">基礎發展 - 已解鎖</div>
+                    </div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-3 h-3 rounded-full bg-gray-500"></div>
+                        <div class="text-sm">專業分化 - 需要任意數值達到 15</div>
+                    </div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-3 h-3 rounded-full bg-gray-500"></div>
+                        <div class="text-sm">成就巔峰 - 需要任意數值達到 25</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-gray-500"></div>
+                        <div class="text-sm">人生導師 - 需要專精路線達到頂峰</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- 手牌區域 -->
+        <div class="hand-area">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">手牌區</h3>
+                <div class="text-sm opacity-75">點擊卡牌查看詳情或拖曳至擺放區</div>
+            </div>
+            <div class="hand-cards" id="hand-cards">
+                <!-- 手牌將在JavaScript中生成 -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- 發展路線科技樹模態框 -->
+    <div id="tech-tree-modal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">人生發展路線</h2>
+                <span class="close text-2xl cursor-pointer">&times;</span>
+            </div>
+            
+            <div class="tech-tree-container">
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                        基礎發展 (20-25歲)
+                    </h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">🎓</span> 學術基礎
+                            </div>
+                            <div class="text-sm mt-2">需要: 知識 10+</div>
+                            <div class="text-sm mt-1">解鎖: 研究能力</div>
+                        </div>
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">🎨</span> 創意思維
+                            </div>
+                            <div class="text-sm mt-2">需要: 創意 10+</div>
+                            <div class="text-sm mt-1">解鎖: 創新能力</div>
+                        </div>
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">👔</span> 職場入門
+                            </div>
+                            <div class="text-sm mt-2">需要: 社交 8+, 知識 5+</div>
+                            <div class="text-sm mt-1">解鎖: 職業發展</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-gray-500 mr-2"></span>
+                        專業分化 (25-30歲)
+                    </h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white bg-opacity-5 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">🎭</span> 創意專精
+                            </div>
+                            <div class="text-sm mt-2">需要: 創意 15+, 知識 10+</div>
+                            <div class="text-sm mt-1">解鎖: 藝術潛能</div>
+                        </div>
+                        <div class="bg-white bg-opacity-5 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">🔬</span> 學術研究
+                            </div>
+                            <div class="text-sm mt-2">需要: 知識 18+, 創意 8+</div>
+                            <div class="text-sm mt-1">解鎖: 科學潛能</div>
+                        </div>
+                        <div class="bg-white bg-opacity-5 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">👥</span> 社會領導
+                            </div>
+                            <div class="text-sm mt-2">需要: 社交 15+, 財富 12+</div>
+                            <div class="text-sm mt-1">解鎖: 領導潛能</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-gray-500 mr-2"></span>
+                        成就巔峰 (30-35歲)
+                    </h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white bg-opacity-5 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">🎨</span> 藝術大師
+                            </div>
+                            <div class="text-sm mt-2">需要: 創意 25+, 幸福 15+</div>
+                            <div class="text-sm mt-1">解鎖: 文化影響力</div>
+                        </div>
+                        <div class="bg-white bg-opacity-5 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">🧪</span> 科學家
+                            </div>
+                            <div class="text-sm mt-2">需要: 知識 25+, 創意 15+</div>
+                            <div class="text-sm mt-1">解鎖: 科學突破</div>
+                        </div>
+                        <div class="bg-white bg-opacity-5 p-4 rounded-lg">
+                            <div class="text-lg font-bold flex items-center">
+                                <span class="mr-2">💼</span> 企業家
+                            </div>
+                            <div class="text-sm mt-2">需要: 社交 20+, 財富 20+</div>
+                            <div class="text-sm mt-1">解鎖: 商業帝國</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-gray-500 mr-2"></span>
+                        人生導師 (35-40歲)
+                    </h3>
+                    <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4 rounded-lg opacity-50">
+                        <div class="text-lg font-bold flex items-center">
+                            <span class="mr-2">🌟</span> 人生大師
+                        </div>
+                        <div class="text-sm mt-2">需要: 任一專精路線達到頂峰 + 幸福 30+</div>
+                        <div class="text-sm mt-1">解鎖: 終極成就 - 圓滿人生</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 卡牌詳情模態框 -->
+    <div id="card-detail-modal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold" id="card-detail-title">卡牌詳情</h2>
+                <span class="close text-2xl cursor-pointer">&times;</span>
+            </div>
+            
+            <div id="card-detail-content" class="p-4 bg-white bg-opacity-5 rounded-lg mb-6">
+                <!-- 卡牌詳情內容 -->
+            </div>
+            
+            <div class="flex justify-between">
+                <button id="use-card-btn" class="btn btn-success">
+                    使用卡牌
+                </button>
+                <button id="close-detail-btn" class="btn btn-outline">
+                    關閉
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 卡牌動作模態框 -->
+    <div id="card-action-modal" class="card-action-modal">
+        <div class="flex flex-col gap-3">
+            <div class="text-center font-bold mb-1" id="action-card-name">卡牌名稱</div>
+            <button id="view-card-btn" class="btn btn-primary">
+                查看詳情
+            </button>
+            <button id="consume-card-btn" class="btn btn-success">
+                消耗卡牌
+            </button>
+            <button id="cancel-action-btn" class="btn btn-outline">
+                取消
+            </button>
+        </div>
+    </div>
+    
+    <!-- 潛力卡升級模態框 -->
+    <div id="upgrade-potential-modal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">升級潛力卡</h2>
+                <span class="close text-2xl cursor-pointer">&times;</span>
+            </div>
+            
+            <div id="upgrade-content" class="p-4 bg-white bg-opacity-5 rounded-lg mb-6">
+                <!-- 升級內容 -->
+            </div>
+            
+            <div class="flex justify-between">
+                <button id="confirm-upgrade-btn" class="btn btn-success">
+                    確認升級
+                </button>
+                <button id="cancel-upgrade-btn" class="btn btn-outline">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 通知 -->
+    <div id="notification" class="notification">
+        通知內容
+    </div>
+    
+    <!-- 新手教學面板 -->
+    <div id="tutorial-panel" class="tutorial-panel">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold">新手教學</h2>
+            <button id="close-tutorial" class="btn btn-outline">
+                關閉
+            </button>
+        </div>
+        
+        <div id="tutorial-content" class="mb-6">
+            <!-- 教學內容 -->
+        </div>
+        
+        <div class="flex justify-between items-center">
+            <button id="prev-tutorial" class="btn btn-primary">
+                上一步
+            </button>
+            <div id="tutorial-step" class="text-center">
+                步驟 <span id="current-step">1</span> / <span id="total-steps">5</span>
+            </div>
+            <button id="next-tutorial" class="btn btn-primary">
+                下一步
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // 遊戲狀態
+        const gameState = {
+            round: 1,
+            age: 20,
+            phase: 'planning', // planning, execution, review
+            stats: {
+                knowledge: 5,
+                creativity: 3,
+                social: 4,
+                physical: 6,
+                wealth: 2,
+                happiness: 7
+            },
+            hand: [],
+            placementZones: {
+                'zone-1': null,
+                'zone-2': null,
+                'zone-3': null,
+                'zone-4': null,
+                'zone-5': null,
+            },
+            potentialZones: {
+                'potential-1': null,
+                'potential-2': null,
+                'potential-3': null,
+            },
+            events: {
+                current: [
+                    {
+                        id: 'event-1',
+                        name: '學習機會',
+                        icon: '📚',
+                        requirement: { type: 'creativity', count: 1 },
+                        reward: { type: 'knowledge', value: 2 }
+                    },
+                    {
+                        id: 'event-2',
+                        name: '工作機會',
+                        icon: '💼',
+                        requirement: { type: 'social', count: 1 },
+                        reward: { type: 'wealth', value: 2 }
+                    }
+                ],
+                major: {
+                    id: 'major-1',
+                    name: '大學畢業',
+                    icon: '🎓',
+                    requirement: { type: 'knowledge', count: 3 },
+                    progress: 1,
+                    reward: { type: 'potential', value: 1 }
+                },
+                next: {
+                    round: 2,
+                    name: '社交聚會',
+                    icon: '🎭',
+                    requirement: { type: 'social', count: 1 }
+                }
+            },
+            traitDeck: 15,
+            selectedCard: null,
+            tutorialStep: 1,
+            tutorialShown: false,
+            draggedCard: null,
+            bonusDraws: 0, // 額外抽卡數量
+            canDrawThisRound: false, // 本回合是否可以抽卡
+            potentialEffects: {} // 潛力卡效果
+        };
+        
+        // 卡牌數據
+        const traitCards = [
+            { id: 'trait-1', type: 'trait', name: '創意思維', icon: '💡', trait: 'creativity', value: 1, description: '增加創意能力，有助於解決問題和創新。' },
+            { id: 'trait-2', type: 'trait', name: '學術專注', icon: '📚', trait: 'knowledge', value: 1, description: '增加知識獲取能力，提升學習效率。' },
+            { id: 'trait-3', type: 'trait', name: '社交能力', icon: '👥', trait: 'social', value: 1, description: '增加社交技巧，擴展人際網絡。' },
+            { id: 'trait-4', type: 'trait', name: '體能訓練', icon: '💪', trait: 'physical', value: 1, description: '增加體力和健康，提高生活質量。' },
+            { id: 'trait-5', type: 'trait', name: '財務管理', icon: '💰', trait: 'wealth', value: 1, description: '增加理財能力，提升財富積累。' },
+            { id: 'trait-6', type: 'trait', name: '心靈平衡', icon: '❤️', trait: 'happiness', value: 1, description: '增加幸福感和心理健康。' },
+            { id: 'trait-7', type: 'trait', name: '創新突破', icon: '✨', trait: 'creativity', value: 2, description: '大幅提升創意能力，解鎖創新潛能。', advanced: true },
+            { id: 'trait-8', type: 'trait', name: '學術精英', icon: '🎓', trait: 'knowledge', value: 2, description: '大幅提升知識水平，成為學術專家。', advanced: true },
+            { id: 'trait-9', type: 'trait', name: '社交領袖', icon: '🌟', trait: 'social', value: 2, description: '大幅提升社交影響力，成為社群領袖。', advanced: true },
+            { id: 'trait-10', type: 'trait', name: '健康達人', icon: '🏆', trait: 'physical', value: 2, description: '大幅提升體能和健康，達到巔峰狀態。', advanced: true }
+        ];
+        
+        const potentialCards = [
+            { id: 'potential-1', type: 'potential', name: '創意潛能', icon: '🎨', trait: 'creativity', effect: '每次獲得創意時額外+1', upgrade: '消耗3張創意卡', upgradedEffect: '每次獲得創意時額外+2', upgraded: false },
+            { id: 'potential-2', type: 'potential', name: '學術潛能', icon: '🔬', trait: 'knowledge', effect: '每次獲得知識時額外+1', upgrade: '消耗3張知識卡', upgradedEffect: '每次獲得知識時額外+2', upgraded: false },
+            { id: 'potential-3', type: 'potential', name: '社交潛能', icon: '🗣️', trait: 'social', effect: '每次獲得社交時額外+1', upgrade: '消耗3張社交卡', upgradedEffect: '每次獲得社交時額外+2', upgraded: false },
+            { id: 'potential-4', type: 'potential', name: '健康潛能', icon: '🧘', trait: 'physical', effect: '每次獲得體力時額外+1', upgrade: '消耗3張體力卡', upgradedEffect: '每次獲得體力時額外+2', upgraded: false },
+            { id: 'potential-5', type: 'potential', name: '財富潛能', icon: '💎', trait: 'wealth', effect: '每次獲得財富時額外+1', upgrade: '消耗3張財富卡', upgradedEffect: '每次獲得財富時額外+2', upgraded: false },
+            { id: 'potential-6', type: 'potential', name: '幸福潛能', icon: '🌈', trait: 'happiness', effect: '每次獲得幸福時額外+1', upgrade: '消耗3張幸福卡', upgradedEffect: '每次獲得幸福時額外+2', upgraded: false },
+            { id: 'potential-7', type: 'potential', name: '抽卡潛能', icon: '🃏', trait: 'draw', effect: '每回合額外抽1張卡', upgrade: '消耗3張任意卡', upgradedEffect: '每回合額外抽2張卡', upgraded: false }
+        ];
+        
+        // 教學內容
+        const tutorialSteps = [
+            {
+                title: "歡迎來到人生模擬卡牌遊戲！",
+                content: "這是一個模擬人生發展的卡牌遊戲，你將通過管理特質卡、事件卡和潛力卡來規劃你的人生道路。讓我們開始學習基本操作吧！"
+            },
+            {
+                title: "遊戲階段",
+                content: "遊戲分為三個階段：<br>1. <b>📋 規劃階段</b>：抽取卡牌並擺放/消耗卡牌制定策略<br>2. <b>⚡ 執行階段</b>：觸發事件獲得獎勵<br>3. <b>📊 整理階段</b>：查看發展路線和特質統計分析<br><br>每回合都會按照這三個階段進行，完成後進入下一回合。"
+            },
+            {
+                title: "卡牌類型",
+                content: "<b>特質卡</b>：代表你的各種能力和特質，可以放入擺放區觸發事件，或直接消耗獲得數值。<br><br><b>事件卡</b>：需要特定特質卡才能觸發，觸發後獲得獎勵。<br><br><b>重要事件卡</b>：需要多張特定特質卡才能完成，獎勵更豐厚，可能解鎖潛力卡。<br><br><b>潛力卡</b>：提供持續性增益效果，可以進階獲得更強大的效果。"
+            },
+            {
+                title: "潛力卡系統",
+                content: "潛力卡是遊戲中最強大的卡牌類型，它們提供持續性的增益效果：<br><br>1. <b>放入潛力區</b>：將潛力卡拖放到潛力區後，其效果會自動生效<br>2. <b>升級潛力卡</b>：點擊潛力區中的潛力卡，可以消耗特定類型的卡牌來升級它<br>3. <b>升級效果</b>：升級後的潛力卡效果會更強大，例如從+1提升到+2<br><br>善用潛力卡是成功的關鍵！"
+            },
+            {
+                title: "基本操作",
+                content: "1. <b>抽卡</b>：從第二回合開始，規劃階段自動抽取2張卡牌<br>2. <b>查看卡牌</b>：點擊卡牌查看詳細信息<br>3. <b>使用卡牌</b>：將卡牌拖放到擺放區或直接消耗<br>4. <b>觸發事件</b>：執行階段會檢查擺放區的卡牌是否符合事件要求<br>5. <b>發展路線</b>：點擊右上方「發展路線」按鈕查看科技樹"
+            },
+            {
+                title: "遊戲目標",
+                content: "你的目標是在20回合內發展出最成功的人生！<br><br>通過提升各項數值，解鎖不同的發展路線，最終達到「人生大師」的終極成就。<br><br>每個選擇都會影響你的人生軌跡，謹慎規劃你的策略吧！<br><br>現在，讓我們開始你的人生旅程！"
+            }
+        ];
+        
+        // 初始化遊戲
+        function initGame() {
+            console.log("遊戲初始化開始");
+            
+            // 確保初始手牌被發放
+            dealInitialCards();
+            
+            // 設置拖放區域事件
+            setupDropZones();
+            
+            // 第一回合不能抽卡
+            gameState.canDrawThisRound = false;
+            document.getElementById('trait-deck').classList.add('disabled');
+            
+            // 立即更新UI以顯示手牌
+            updateUI();
+            
+            // 設置事件監聽器
+            document.getElementById('planning-phase').addEventListener('click', () => setPhase('planning'));
+            document.getElementById('execution-phase').addEventListener('click', () => setPhase('execution'));
+            document.getElementById('review-phase').addEventListener('click', () => setPhase('review'));
+            
+            // 模態框事件
+            document.getElementById('tech-tree-btn').addEventListener('click', () => {
+                document.getElementById('tech-tree-modal').style.display = 'block';
+            });
+            
+            document.getElementById('tutorial-btn').addEventListener('click', showTutorial);
+            
+            const closeButtons = document.getElementsByClassName('close');
+            for (let i = 0; i < closeButtons.length; i++) {
+                closeButtons[i].addEventListener('click', function() {
+                    this.closest('.modal').style.display = 'none';
+                });
+            }
+            
+            document.getElementById('close-detail-btn').addEventListener('click', function() {
+                document.getElementById('card-detail-modal').style.display = 'none';
+            });
+            
+            document.getElementById('use-card-btn').addEventListener('click', useSelectedCard);
+            
+            // 卡牌動作模態框事件
+            document.getElementById('view-card-btn').addEventListener('click', viewSelectedCard);
+            document.getElementById('consume-card-btn').addEventListener('click', consumeSelectedCard);
+            document.getElementById('cancel-action-btn').addEventListener('click', hideCardActionModal);
+            
+            // 潛力卡升級模態框事件
+            document.getElementById('confirm-upgrade-btn').addEventListener('click', confirmUpgradePotential);
+            document.getElementById('cancel-upgrade-btn').addEventListener('click', function() {
+                document.getElementById('upgrade-potential-modal').style.display = 'none';
+            });
+            
+            // 教學面板事件
+            document.getElementById('close-tutorial').addEventListener('click', hideTutorial);
+            document.getElementById('prev-tutorial').addEventListener('click', prevTutorialStep);
+            document.getElementById('next-tutorial').addEventListener('click', nextTutorialStep);
+            
+            // 點擊空白處關閉模態框
+            window.addEventListener('click', function(event) {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            });
+            
+            // 特質卡堆點擊事件
+            document.getElementById('trait-deck').addEventListener('click', function() {
+                if (gameState.phase === 'planning' && gameState.canDrawThisRound) {
+                    drawCard('trait');
+                } else if (!gameState.canDrawThisRound) {
+                    showNotification("第一回合不可抽卡，請等到下一回合！", "warning");
+                } else {
+                    showNotification("只能在規劃階段抽取卡牌！", "warning");
+                }
+            });
+            
+            // 顯示歡迎通知
+            showNotification("歡迎來到人生模擬卡牌遊戲！點擊右上方「教學」按鈕開始學習。");
+            
+            // 自動顯示教學
+            setTimeout(() => {
+                if (!gameState.tutorialShown) {
+                    showTutorial();
+                }
+            }, 1000);
+            
+            console.log("遊戲初始化完成");
+        }
+        
+        // 設置拖放區域
+        function setupDropZones() {
+            const dropZones = document.querySelectorAll('.placement-zone');
+            
+            dropZones.forEach(zone => {
+                // 移除舊的事件監聽器（如果有）
+                zone.removeEventListener('dragover', handleDragOver);
+                zone.removeEventListener('dragenter', handleDragEnter);
+                zone.removeEventListener('dragleave', handleDragLeave);
+                zone.removeEventListener('drop', handleDrop);
+                zone.removeEventListener('click', handleZoneClick);
+                
+                // 添加新的事件監聽器
+                zone.addEventListener('dragover', handleDragOver);
+                zone.addEventListener('dragenter', handleDragEnter);
+                zone.addEventListener('dragleave', handleDragLeave);
+                zone.addEventListener('drop', handleDrop);
+                zone.addEventListener('click', handleZoneClick);
+            });
+        }
+        
+        // 處理區域點擊事件
+        function handleZoneClick(e) {
+            const zoneId = e.currentTarget.dataset.zone;
+            
+            // 如果是潛力區且有卡牌，顯示升級選項
+            if (zoneId.startsWith('potential-') && gameState.potentialZones[zoneId]) {
+                const potentialCard = gameState.potentialZones[zoneId];
+                showUpgradePotentialModal(potentialCard, zoneId);
+            }
+        }
+        
+        // 顯示潛力卡升級模態框
+        function showUpgradePotentialModal(card, zoneId) {
+            const modal = document.getElementById('upgrade-potential-modal');
+            const content = document.getElementById('upgrade-content');
+            
+            // 如果已經升級，顯示不同內容
+            if (card.upgraded) {
+                content.innerHTML = `
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="text-5xl mb-4">${card.icon}</div>
+                        <div class="text-xl font-bold">${card.name}</div>
+                        <div class="bg-green-500 text-white px-2 py-1 rounded-full text-xs mt-2">已升級</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-4">
+                        <div class="font-bold mb-1">當前效果</div>
+                        <div>${card.upgradedEffect}</div>
+                    </div>
+                    <div class="text-center text-sm opacity-75">
+                        此潛力卡已達到最高等級
+                    </div>
+                `;
+                
+                // 隱藏升級按鈕
+                document.getElementById('confirm-upgrade-btn').style.display = 'none';
+            } else {
+                content.innerHTML = `
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="text-5xl mb-4">${card.icon}</div>
+                        <div class="text-xl font-bold">${card.name}</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-4">
+                        <div class="font-bold mb-1">當前效果</div>
+                        <div>${card.effect}</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-4">
+                        <div class="font-bold mb-1">升級條件</div>
+                        <div>${card.upgrade}</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                        <div class="font-bold mb-1">升級後效果</div>
+                        <div>${card.upgradedEffect}</div>
+                    </div>
+                `;
+                
+                // 顯示升級按鈕
+                document.getElementById('confirm-upgrade-btn').style.display = 'block';
+            }
+            
+            // 保存當前選中的潛力卡和區域
+            gameState.selectedCard = card;
+            gameState.selectedZone = zoneId;
+            
+            modal.style.display = 'block';
+        }
+        
+        // 確認升級潛力卡
+        function confirmUpgradePotential() {
+            const card = gameState.selectedCard;
+            const zoneId = gameState.selectedZone;
+            
+            if (!card || !zoneId || card.upgraded) return;
+            
+            // 檢查是否有足夠的卡牌可以消耗
+            const requiredTrait = card.trait;
+            let matchingCards = gameState.hand.filter(c => c.type === 'trait' && c.trait === requiredTrait);
+            
+            // 特殊處理抽卡潛能
+            if (requiredTrait === 'draw') {
+                matchingCards = gameState.hand.filter(c => c.type === 'trait');
+            }
+            
+            if (matchingCards.length >= 3) {
+                // 消耗3張卡牌
+                for (let i = 0; i < 3; i++) {
+                    const cardToRemove = matchingCards[i];
+                    gameState.hand = gameState.hand.filter(c => c.id !== cardToRemove.id);
+                }
+                
+                // 升級潛力卡
+                card.upgraded = true;
+                gameState.potentialZones[zoneId] = card;
+                
+                // 更新潛力效果
+                updatePotentialEffects();
+                
+                // 顯示通知
+                showNotification(`成功升級 ${card.name}！現在效果更強大了。`, "success");
+                
+                // 關閉模態框
+                document.getElementById('upgrade-potential-modal').style.display = 'none';
+                
+                // 更新UI
+                updateUI();
+            } else {
+                showNotification(`升級失敗！需要3張${translateTrait(requiredTrait)}卡，但你只有${matchingCards.length}張。`, "error");
+            }
+        }
+        
+        // 更新潛力效果
+        function updatePotentialEffects() {
+            // 重置潛力效果
+            gameState.potentialEffects = {};
+            
+            // 檢查每個潛力區
+            for (const zone in gameState.potentialZones) {
+                const card = gameState.potentialZones[zone];
+                if (card) {
+                    const trait = card.trait;
+                    const value = card.upgraded ? 2 : 1;
+                    
+                    // 特殊處理抽卡潛能
+                    if (trait === 'draw') {
+                        gameState.bonusDraws = value;
+                    } else {
+                        // 其他潛力效果
+                        gameState.potentialEffects[trait] = (gameState.potentialEffects[trait] || 0) + value;
+                    }
+                }
+            }
+            
+            console.log("更新潛力效果:", gameState.potentialEffects);
+        }
+        
+        // 拖曳事件處理
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+        
+        function handleDragEnter(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drop-zone');
+        }
+        
+        function handleDragLeave(e) {
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+                e.currentTarget.classList.remove('drop-zone');
+            }
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drop-zone');
+            
+            const cardId = gameState.draggedCard;
+            if (!cardId) return;
+            
+            const zoneId = e.currentTarget.dataset.zone;
+            const cardData = gameState.hand.find(c => c.id === cardId);
+            
+            if (cardData) {
+                // 從手牌中移除
+                gameState.hand = gameState.hand.filter(c => c.id !== cardId);
+                
+                // 放入目標區域
+                if (zoneId.startsWith('zone-')) {
+                    gameState.placementZones[zoneId] = cardData;
+                    showNotification(`將 ${cardData.name} 放入擺放區 ${zoneId.split('-')[1]}`);
+                } else if (zoneId.startsWith('potential-')) {
+                    if (cardData.type === 'potential') {
+                        gameState.potentialZones[zoneId] = cardData;
+                        showNotification(`將 ${cardData.name} 放入潛力區 ${zoneId.split('-')[1]}`);
+                        
+                        // 更新潛力效果
+                        updatePotentialEffects();
+                    } else {
+                        // 如果不是潛力卡，不允許放入潛力區
+                        gameState.hand.push(cardData);
+                        showNotification("只有潛力卡可以放入潛力區！", "error");
+                    }
+                }
+                
+                // 重置拖曳狀態
+                gameState.draggedCard = null;
+                
+                // 更新UI
+                updateUI();
+            }
+        }
+        
+        // 發初始手牌
+        function dealInitialCards() {
+            // 清空現有手牌以防重複
+            gameState.hand = [];
+            
+            // 發放5張初始手牌
+            for (let i = 0; i < 5; i++) {
+                const randomIndex = Math.floor(Math.random() * traitCards.length);
+                const card = {...traitCards[randomIndex]};
+                card.id = `card-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`;
+                gameState.hand.push(card);
+                gameState.traitDeck--;
+            }
+            
+            console.log("初始手牌已發放:", gameState.hand);
+        }
+        
+        // 抽卡
+        function drawCard(type, count = 1) {
+            if (type === 'trait') {
+                if (gameState.traitDeck > 0) {
+                    for (let i = 0; i < count; i++) {
+                        if (gameState.traitDeck <= 0) break;
+                        
+                        const randomIndex = Math.floor(Math.random() * traitCards.length);
+                        const card = {...traitCards[randomIndex]};
+                        card.id = `card-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`;
+                        gameState.hand.push(card);
+                        gameState.traitDeck--;
+                    }
+                    updateUI();
+                    showNotification(`抽到了 ${count} 張卡！`);
+                } else {
+                    showNotification("特質卡牌已用完！", "warning");
+                }
+            } else if (type === 'potential') {
+                // 抽取潛力卡
+                const randomIndex = Math.floor(Math.random() * potentialCards.length);
+                const card = {...potentialCards[randomIndex]};
+                card.id = `potential-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                gameState.hand.push(card);
+                updateUI();
+                showNotification(`獲得了潛力卡：${card.name}！`, "success");
+            }
+        }
+        
+        // 更新UI
+        function updateUI() {
+            // 更新回合和年齡
+            document.getElementById('round-counter').textContent = gameState.round;
+            document.getElementById('age-counter').textContent = gameState.age;
+            document.getElementById('next-phase-counter').textContent = Math.min(5, 25 - gameState.age);
+            document.getElementById('trait-deck-count').textContent = gameState.traitDeck;
+            document.getElementById('next-event-round').textContent = gameState.events.next.round;
+            document.getElementById('next-event-name').textContent = gameState.events.next.name;
+            document.getElementById('next-event-icon').textContent = gameState.events.next.icon;
+            document.getElementById('next-event-requirement').textContent = `需要: ${translateTrait(gameState.events.next.requirement.type)} x${gameState.events.next.requirement.count}`;
+            document.getElementById('major-event-progress').textContent = gameState.events.major.progress;
+            
+            // 更新卡堆狀態提示
+            const deckStatus = document.getElementById('deck-status');
+            if (gameState.round === 1) {
+                deckStatus.textContent = "(第一回合不可抽卡)";
+                document.getElementById('trait-deck').classList.add('disabled');
+            } else {
+                let statusText = "(規劃階段可抽卡)";
+                if (gameState.bonusDraws > 0) {
+                    statusText += ` +${gameState.bonusDraws}`;
+                }
+                deckStatus.textContent = statusText;
+                
+                if (gameState.canDrawThisRound) {
+                    document.getElementById('trait-deck').classList.remove('disabled');
+                } else {
+                    document.getElementById('trait-deck').classList.add('disabled');
+                }
+            }
+            
+            // 更新數值
+            document.getElementById('knowledge-value').textContent = gameState.stats.knowledge;
+            document.getElementById('creativity-value').textContent = gameState.stats.creativity;
+            document.getElementById('social-value').textContent = gameState.stats.social;
+            document.getElementById('physical-value').textContent = gameState.stats.physical;
+            document.getElementById('wealth-value').textContent = gameState.stats.wealth;
+            document.getElementById('happiness-value').textContent = gameState.stats.happiness;
+            
+            // 更新數值條
+            document.querySelector('.knowledge-color.stat-progress').style.width = `${gameState.stats.knowledge * 5}%`;
+            document.querySelector('.creativity-color.stat-progress').style.width = `${gameState.stats.creativity * 5}%`;
+            document.querySelector('.social-color.stat-progress').style.width = `${gameState.stats.social * 5}%`;
+            document.querySelector('.physical-color.stat-progress').style.width = `${gameState.stats.physical * 5}%`;
+            document.querySelector('.wealth-color.stat-progress').style.width = `${gameState.stats.wealth * 5}%`;
+            document.querySelector('.happiness-color.stat-progress').style.width = `${gameState.stats.happiness * 5}%`;
+            
+            // 更新手牌 - 確保手牌區域清空後重新填充
+            const handContainer = document.getElementById('hand-cards');
+            handContainer.innerHTML = '';
+            
+            console.log("更新手牌UI，當前手牌:", gameState.hand);
+            
+            if (gameState.hand.length === 0) {
+                handContainer.innerHTML = '<div class="text-center w-full text-gray-400">沒有手牌</div>';
+            } else {
+                gameState.hand.forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'hand-card card-hover';
+                    cardElement.id = card.id;
+                    cardElement.setAttribute('draggable', true);
+                    
+                    // 設置拖曳事件
+                    cardElement.addEventListener('dragstart', function(e) {
+                        gameState.draggedCard = card.id;
+                        e.dataTransfer.setData('text/plain', card.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+                    
+                    // 設置點擊事件
+                    cardElement.addEventListener('click', function() {
+                        showCardActionModal(card);
+                    });
+                    
+                    let cardClass = '';
+                    if (card.type === 'trait') {
+                        cardClass = 'trait-card';
+                    } else if (card.type === 'potential') {
+                        cardClass = 'potential-card';
+                    }
+                    
+                    cardElement.innerHTML = `
+                        <div class="card ${cardClass} h-full">
+                            <div class="card-inner">
+                                <div class="card-front">
+                                    <div class="card-icon">${card.icon}</div>
+                                    <div class="card-title">${card.name}</div>
+                                    <div class="card-description">${getCardDescription(card)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    handContainer.appendChild(cardElement);
+                });
+            }
+            
+            // 更新擺放區
+            for (const zone in gameState.placementZones) {
+                const zoneElement = document.getElementById(zone);
+                const card = gameState.placementZones[zone];
+                
+                // 清空區域
+                zoneElement.innerHTML = '';
+                zoneElement.innerHTML = `<div class="text-sm opacity-75">擺放區 ${zone.split('-')[1]}</div>`;
+                
+                if (card) {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'card w-full h-full';
+                    
+                    let cardClass = '';
+                    if (card.type === 'trait') {
+                        cardClass = 'trait-card';
+                    }
+                    
+                    cardElement.innerHTML = `
+                        <div class="card-inner ${cardClass}">
+                            <div class="card-front">
+                                <div class="card-icon">${card.icon}</div>
+                                <div class="card-title">${card.name}</div>
+                                <div class="card-description">${getCardDescription(card)}</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    zoneElement.appendChild(cardElement);
+                }
+            }
+            
+            // 更新潛力區
+            for (const zone in gameState.potentialZones) {
+                const zoneElement = document.getElementById(zone);
+                const card = gameState.potentialZones[zone];
+                
+                // 清空區域
+                zoneElement.innerHTML = '';
+                zoneElement.innerHTML = `<div class="text-sm text-purple-200 opacity-75">潛力區 ${zone.split('-')[1]}</div>`;
+                
+                if (card) {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'card w-full h-full';
+                    
+                    // 如果卡牌已升級，添加特殊樣式
+                    const upgradedClass = card.upgraded ? 'upgraded-card' : '';
+                    
+                    cardElement.innerHTML = `
+                        <div class="card-inner potential-card ${upgradedClass}">
+                            <div class="card-front">
+                                <div class="card-icon">${card.icon}</div>
+                                <div class="card-title">${card.name}</div>
+                                <div class="card-description">${card.upgraded ? card.upgradedEffect : card.effect}</div>
+                                ${card.upgraded ? '<div class="bg-yellow-500 text-white px-2 py-0.5 rounded-full text-xs mt-1">已升級</div>' : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    zoneElement.appendChild(cardElement);
+                }
+            }
+        }
+        
+        // 獲取卡牌描述
+        function getCardDescription(card) {
+            if (card.type === 'trait') {
+                return `${translateTrait(card.trait)} +${card.value}`;
+            } else if (card.type === 'potential') {
+                return card.effect;
+            }
+            return '';
+        }
+        
+        // 翻譯特質名稱
+        function translateTrait(trait) {
+            const translations = {
+                'knowledge': '知識',
+                'creativity': '創意',
+                'social': '社交',
+                'physical': '體力',
+                'wealth': '財富',
+                'happiness': '幸福',
+                'draw': '抽卡'
+            };
+            
+            return translations[trait] || trait;
+        }
+        
+        // 首字母大寫
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        
+        // 設置遊戲階段
+        function setPhase(phase) {
+            gameState.phase = phase;
+            
+            // 更新UI
+            document.getElementById('planning-phase').className = 'phase-button ' + (phase === 'planning' ? 'active' : '');
+            document.getElementById('execution-phase').className = 'phase-button ' + (phase === 'execution' ? 'active' : '');
+            document.getElementById('review-phase').className = 'phase-button ' + (phase === 'review' ? 'active' : '');
+            
+            // 階段特定邏輯
+            if (phase === 'planning') {
+                // 規劃階段邏輯
+                if (gameState.round === 1) {
+                    // 第一回合已經有初始手牌，不需要再抽
+                    showNotification("規劃階段：請使用你的初始手牌");
+                    gameState.canDrawThisRound = false;
+                } else {
+                    // 從第二回合開始，可以抽卡
+                    showNotification("規劃階段：抽取新卡牌");
+                    gameState.canDrawThisRound = true;
+                    
+                    // 計算要抽取的卡牌數量
+                    const drawCount = 2 + gameState.bonusDraws;
+                    
+                    // 自動抽卡
+                    drawCard('trait', drawCount);
+                    
+                    // 抽完後就不能再抽了
+                    gameState.canDrawThisRound = false;
+                }
+                
+                // 更新UI以反映抽卡狀態
+                updateUI();
+            } else if (phase === 'execution') {
+                // 執行階段邏輯
+                showNotification("執行階段：檢查事件觸發條件");
+                executeEvents();
+            } else if (phase === 'review') {
+                // 整理階段邏輯
+                showNotification("整理階段：查看你的發展路線和特質統計");
+            }
+        }
+        
+        // 執行事件
+        function executeEvents() {
+            // 檢查是否有符合條件的事件可以觸發
+            checkEvents();
+        }
+        
+        // 檢查事件
+        function checkEvents() {
+            let eventTriggered = false;
+            
+            // 檢查當前事件
+            gameState.events.current.forEach(event => {
+                let matchingCards = 0;
+                
+                // 檢查擺放區是否有符合條件的卡牌
+                for (const zone in gameState.placementZones) {
+                    const card = gameState.placementZones[zone];
+                    if (card && card.trait === event.requirement.type) {
+                        matchingCards++;
+                    }
+                }
+                
+                // 如果符合條件，觸發事件
+                if (matchingCards >= event.requirement.count) {
+                    // 計算獎勵值（考慮潛力卡效果）
+                    let rewardValue = event.reward.value;
+                    const trait = event.reward.type;
+                    
+                    // 檢查是否有對應的潛力效果
+                    if (gameState.potentialEffects[trait]) {
+                        rewardValue += gameState.potentialEffects[trait];
+                    }
+                    
+                    // 增加相應數值
+                    gameState.stats[trait] += rewardValue;
+                    
+                    // 顯示獎勵通知
+                    showNotification(`觸發事件：${event.name}\n獲得獎勵：${translateTrait(trait)} +${rewardValue}`, "success");
+                    eventTriggered = true;
+                }
+            });
+            
+            // 檢查重要事件
+            const majorEvent = gameState.events.major;
+            let matchingCards = 0;
+            
+            // 檢查擺放區是否有符合條件的卡牌
+            for (const zone in gameState.placementZones) {
+                const card = gameState.placementZones[zone];
+                if (card && card.trait === majorEvent.requirement.type) {
+                    matchingCards++;
+                }
+            }
+            
+            // 更新進度
+            if (matchingCards > 0) {
+                majorEvent.progress += matchingCards;
+                
+                // 如果達到要求，觸發重要事件
+                if (majorEvent.progress >= majorEvent.requirement.count) {
+                    // 獲得潛力卡
+                    drawCard('potential');
+                    
+                    // 顯示獎勵通知
+                    showNotification(`觸發重要事件：${majorEvent.name}\n獲得獎勵：潛力卡！`, "success");
+                    
+                    // 重置重要事件
+                    gameState.events.major = {
+                        id: 'major-2',
+                        name: '職業發展',
+                        icon: '💼',
+                        requirement: { type: 'social', count: 4 },
+                        progress: 0,
+                        reward: { type: 'potential', value: 1 }
+                    };
+                    
+                    eventTriggered = true;
+                } else {
+                    // 顯示進度通知
+                    showNotification(`重要事件：${majorEvent.name}\n進度更新：${majorEvent.progress}/${majorEvent.requirement.count}`);
+                    eventTriggered = true;
+                }
+            }
+            
+            if (!eventTriggered) {
+                showNotification("沒有事件被觸發，請確保擺放區有符合事件要求的卡牌。", "warning");
+            }
+            
+            // 更新UI
+            updateUI();
+            
+            // 進入下一回合
+            setTimeout(() => {
+                nextRound();
+            }, 2000);
+        }
+        
+        // 進入下一回合
+        function nextRound() {
+            gameState.round++;
+            gameState.age++;
+            
+            // 更新下一個事件
+            gameState.events.next = {
+                round: gameState.round + 1,
+                name: getRandomEventName(),
+                icon: getRandomEventIcon(),
+                requirement: { 
+                    type: getRandomRequirementType(),
+                    count: Math.min(3, Math.ceil(gameState.round / 5))
+                }
+            };
+            
+            // 清空擺放區
+            for (const zone in gameState.placementZones) {
+                gameState.placementZones[zone] = null;
+            }
+            
+            // 重置階段
+            setPhase('planning');
+            
+            // 更新UI
+            updateUI();
+            
+            showNotification(`進入第 ${gameState.round} 回合，你現在 ${gameState.age} 歲了！`);
+        }
+        
+        // 獲取隨機事件名稱
+        function getRandomEventName() {
+            const eventNames = [
+                '社交聚會', '學習機會', '創意激發', '健身挑戰', 
+                '投資機會', '心靈成長', '職業發展', '旅行見聞',
+                '人際網絡', '技能提升', '健康檢查', '財務規劃'
+            ];
+            return eventNames[Math.floor(Math.random() * eventNames.length)];
+        }
+        
+        // 獲取隨機事件圖標
+        function getRandomEventIcon() {
+            const eventIcons = ['🎭', '📚', '💡', '💪', '💰', '❤️', '💼', '✈️', '👥', '🔧', '🏥', '📊'];
+            return eventIcons[Math.floor(Math.random() * eventIcons.length)];
+        }
+        
+        // 獲取隨機需求類型
+        function getRandomRequirementType() {
+            const types = ['knowledge', 'creativity', 'social', 'physical', 'wealth', 'happiness'];
+            return types[Math.floor(Math.random() * types.length)];
+        }
+        
+        // 顯示卡牌動作模態框
+        function showCardActionModal(card) {
+            const modal = document.getElementById('card-action-modal');
+            document.getElementById('action-card-name').textContent = card.name;
+            gameState.selectedCard = card;
+            modal.style.display = 'block';
+        }
+        
+        // 隱藏卡牌動作模態框
+        function hideCardActionModal() {
+            document.getElementById('card-action-modal').style.display = 'none';
+        }
+        
+        // 查看卡牌詳情
+        function viewSelectedCard() {
+            hideCardActionModal();
+            showCardDetail(gameState.selectedCard);
+        }
+        
+        // 消耗卡牌
+        function consumeSelectedCard() {
+            const card = gameState.selectedCard;
+            
+            if (card && card.type === 'trait') {
+                // 從手牌中移除
+                gameState.hand = gameState.hand.filter(c => c.id !== card.id);
+                
+                // 計算獲得的數值（考慮潛力卡效果）
+                let value = card.value;
+                const trait = card.trait;
+                
+                // 檢查是否有對應的潛力效果
+                if (gameState.potentialEffects[trait]) {
+                    value += gameState.potentialEffects[trait];
+                }
+                
+                // 增加相應數值
+                gameState.stats[trait] += value;
+                
+                // 顯示通知
+                showNotification(`消耗卡牌：${card.name}\n獲得：${translateTrait(trait)} +${value}`, "success");
+                
+                // 關閉模態框
+                hideCardActionModal();
+                
+                // 更新UI
+                updateUI();
+            } else if (card && card.type === 'potential') {
+                showNotification("潛力卡不能直接消耗，請將其放入潛力區！", "warning");
+                hideCardActionModal();
+            }
+        }
+        
+        // 顯示卡牌詳情
+        function showCardDetail(card) {
+            const modal = document.getElementById('card-detail-modal');
+            const title = document.getElementById('card-detail-title');
+            const content = document.getElementById('card-detail-content');
+            
+            title.textContent = card.name;
+            
+            let contentHTML = '';
+            if (card.type === 'trait') {
+                contentHTML = `
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="text-5xl mb-4">${card.icon}</div>
+                        <div class="text-xl font-bold">${card.name}</div>
+                        <div class="text-sm opacity-75 mt-2">${card.description}</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-4">
+                        <div class="font-bold mb-1">效果</div>
+                        <div>${translateTrait(card.trait)} +${card.value}</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                        <div class="font-bold mb-1">使用選項</div>
+                        <div class="text-sm">1. 放入擺放區：可觸發事件</div>
+                        <div class="text-sm">2. 直接消耗：獲得 ${translateTrait(card.trait)} +${card.value}</div>
+                    </div>
+                `;
+            } else if (card.type === 'potential') {
+                contentHTML = `
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="text-5xl mb-4">${card.icon}</div>
+                        <div class="text-xl font-bold">${card.name}</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-4">
+                        <div class="font-bold mb-1">效果</div>
+                        <div>${card.effect}</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-4">
+                        <div class="font-bold mb-1">進階條件</div>
+                        <div>${card.upgrade}</div>
+                    </div>
+                    <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+                        <div class="font-bold mb-1">進階效果</div>
+                        <div>${card.upgradedEffect}</div>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = contentHTML;
+            
+            modal.style.display = 'block';
+        }
+        
+        // 使用選中的卡牌
+        function useSelectedCard() {
+            const card = gameState.selectedCard;
+            
+            if (card && card.type === 'trait') {
+                // 從手牌中移除
+                gameState.hand = gameState.hand.filter(c => c.id !== card.id);
+                
+                // 計算獲得的數值（考慮潛力卡效果）
+                let value = card.value;
+                const trait = card.trait;
+                
+                // 檢查是否有對應的潛力效果
+                if (gameState.potentialEffects[trait]) {
+                    value += gameState.potentialEffects[trait];
+                }
+                
+                // 增加相應數值
+                gameState.stats[trait] += value;
+                
+                // 顯示通知
+                showNotification(`消耗卡牌：${card.name}\n獲得：${translateTrait(trait)} +${value}`, "success");
+                
+                // 關閉模態框
+                document.getElementById('card-detail-modal').style.display = 'none';
+                
+                // 更新UI
+                updateUI();
+            }
+        }
+        
+        // 顯示通知
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            
+            // 根據類型設置不同的樣式
+            notification.className = 'notification';
+            
+            if (type === 'error') {
+                notification.style.backgroundColor = 'rgba(239, 68, 68, 0.9)';
+            } else if (type === 'success') {
+                notification.style.backgroundColor = 'rgba(16, 185, 129, 0.9)';
+            } else if (type === 'warning') {
+                notification.style.backgroundColor = 'rgba(245, 158, 11, 0.9)';
+            } else {
+                notification.style.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+            }
+            
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 顯示教學
+        function showTutorial() {
+            const tutorialPanel = document.getElementById('tutorial-panel');
+            tutorialPanel.classList.add('show');
+            gameState.tutorialShown = true;
+            gameState.tutorialStep = 1; // 重置到第一步
+            updateTutorialContent();
+        }
+        
+        // 隱藏教學
+        function hideTutorial() {
+            const tutorialPanel = document.getElementById('tutorial-panel');
+            tutorialPanel.classList.remove('show');
+        }
+        
+        // 上一步教學
+        function prevTutorialStep() {
+            if (gameState.tutorialStep > 1) {
+                gameState.tutorialStep--;
+                updateTutorialContent();
+            }
+        }
+        
+        // 下一步教學
+        function nextTutorialStep() {
+            if (gameState.tutorialStep < tutorialSteps.length) {
+                gameState.tutorialStep++;
+                updateTutorialContent();
+            } else {
+                hideTutorial();
+            }
+        }
+        
+        // 更新教學內容
+        function updateTutorialContent() {
+            const step = tutorialSteps[gameState.tutorialStep - 1];
+            const content = document.getElementById('tutorial-content');
+            const currentStep = document.getElementById('current-step');
+            const totalSteps = document.getElementById('total-steps');
+            const prevBtn = document.getElementById('prev-tutorial');
+            const nextBtn = document.getElementById('next-tutorial');
+            
+            content.innerHTML = `
+                <h3 class="text-lg font-bold mb-4">${step.title}</h3>
+                <div class="text-sm">${step.content}</div>
+            `;
+            
+            currentStep.textContent = gameState.tutorialStep;
+            totalSteps.textContent = tutorialSteps.length;
+            
+            prevBtn.disabled = gameState.tutorialStep === 1;
+            prevBtn.className = `btn ${gameState.tutorialStep === 1 ? 'btn-outline opacity-50' : 'btn-primary'}`;
+            
+            nextBtn.textContent = gameState.tutorialStep === tutorialSteps.length ? '完成' : '下一步';
+        }
+        
+        // 初始化遊戲
+        window.onload = function() {
+            initGame();
+        };
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9664542750868463',t:'MTc1MzcwNTIwNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
